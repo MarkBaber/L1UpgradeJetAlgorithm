@@ -19,10 +19,10 @@ To checkout the latest <i>development</i> release:
 </code>
 
 
-Repositry contents
+Repository contents
 ------------------
 
-The repositry contains the following directories:
+The repository contains the following directories:
 
 <p>
   <b>AnalyseUpgradeJets/ </b>        - Contains jet analyser code<br>
@@ -58,5 +58,16 @@ To analyse the output:
           process.source = cms.Source("PoolSource",<br>
                             fileNames = cms.untracked.vstring( 'file:/home/hep/mb1512/JetAnalyser/CMSSW_6_2_2/src/JetCollections.root'),                     
 </code>
+
+Performing calibrations 
+--------------------------------------------------
+
+Use the scripts <i>getCalibrationJETMET.cpp</i> and <i>getRecalibJETMET.cpp</i> to extract calibration LUTs, this requires the output from the <i>AnalyseJets.py</i> analyser with the <i>CALIBRATION</i> option in the <i>JetHist</i> producer enabled.
+
+First, edit the file to be run over in <i>getCalibrationJETMET.cpp</i> by changing the variable <i>filename</i> and choose which of the calibration directories to analyse by modifying the contents of the vector <i>subDirs</i>. Run the script with the function, <i>getCalibration()</i>.
+
+After running the script an output ROOT file containing inverse jet response vs L1 pT curves with be created. This is used as input for the second script <i>getRecalibJETMET.cpp</i>. The script is run with the function <i>calibrateFile()</i> which takes as its arguments the file to be calibrated, the fit range and quiet printing option. This will print a LUT with the eta binning specified by the analyser <i>AnalyseJets.py</i>.
+
+
 
 
