@@ -42,10 +42,13 @@ class TriggerTowerGeometry
 
 	double phi( const int& iPhi )
 	{
-
-	  //BUG - Should use: deltaPhi = 2*pi/72
-	  //return ( double( iPhi )-0.5 ) * 0.087;
-	  return ( double( iPhi ) - 0.5 ) * mDeltaPhi;
+	  // Restrict phi to the range: [ -PI, PI ]
+	  if ( iPhi < 37 ){
+	    return ( double( iPhi ) - 0.5 ) * mDeltaPhi;
+	  }
+	  else{
+	    return ( double( iPhi ) - 0.5 - 72 ) * mDeltaPhi;
+	  }
 	}
 
 	double towerEtaSize( const int& iEta )
