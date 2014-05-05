@@ -62,6 +62,10 @@ namespace l1slhc
     mIphi( iPhi ), 
 
     mE2GeV( 0 ), 
+    mEcal( 0 ),
+    mHcal( 0 ),
+
+
     mE( 0 ), 
     mCentral( true ),
     mAsymEta(0),
@@ -134,6 +138,10 @@ namespace l1slhc
     mCentral = central;
   }
   
+  void L1TowerJet::setiEta( const int & iEta )
+  {
+    mIeta = iEta;
+  }
 
   // ********************************************************************************
   // *                                   Getters                                    *
@@ -184,6 +192,15 @@ namespace l1slhc
     return mP4.Phi();
     // return mWeightedPhi;
   }
+
+  const double& L1TowerJet::Ecal() const{
+    return mEcal;
+  }
+  const double& L1TowerJet::Hcal() const{
+    return mHcal;
+  }
+
+
 
   // Total TT energy enclosed by tower jet in GeV (Corrected to account for energy being stored in multiples of 2 GeV)
   const double &L1TowerJet::E(  ) const
@@ -238,6 +255,17 @@ namespace l1slhc
   {
     return mJetRealArea;
   }
+
+  void L1TowerJet::SetJetArea( double newJetArea  )
+  {
+    mJetArea = newJetArea;
+  }
+
+  void L1TowerJet::SetJetRealArea( double newJetRealArea  )
+  {
+    mJetRealArea = newJetRealArea;
+  }
+
 
   /*
     double L1TowerJet::EcalVariance(  ) const
@@ -457,32 +485,39 @@ namespace l1slhc
     int lowIeta  = mIeta;
     int lowIphi  = mIphi;
     int highIeta = lowIeta + (mJetSize - 1);
+    // Correct for iEta == 0 gap
+    if ( (lowIeta < 0) && (highIeta >= 0) ){
+      highIeta++; 
+    }
+    // Correct for phi wrap around, if jet map exceeds phi calorimeter range
     int highIphi = lowIphi + (mJetSize - 1);
-
+    if ( highIphi > 72 ){
+      highIphi -= 72;
+    }    
     // Extract the true eta of these TTs
     double lowEta  = mTowerGeo.eta(lowIeta);
     double lowPhi  = mTowerGeo.phi(lowIphi);
     double highEta = mTowerGeo.eta(highIeta);
     double highPhi = mTowerGeo.phi(highIphi);
-
-    // Correct for phi wrap around, if jet map exceeds phi calorimeter range
-    if ( (lowIphi + (mJetSize - 1) ) > 72 ){
-
-      // Current tower has wrapped around
-      if ( highIphi < lowIphi ){
-	highPhi += 2*PI;
-      }
-
+    if ( lowIphi > 36 ){
+      lowPhi += 2*PI;
+      highPhi += 2*PI;
     }
+    else if ( highIphi > 36 ){
+      highPhi += 2*PI;
+    }
+
+    double deltaPhi = fabs(highPhi - lowPhi);
+    highPhi = lowPhi + deltaPhi;
 
     // Determine the geometric jet center
     mJetCenterEta = (highEta + lowEta)/2.0;
     mJetCenterPhi = (highPhi + lowPhi)/2.0;
 
-    // Constrain jets to the range [-Pi,Pi]
-    if (mJetCenterPhi > PI)
+     // Constrain jets to the range [-Pi,Pi]
+    if ( mJetCenterPhi > 2*PI ){
       mJetCenterPhi -= 2*PI;
-    
+    }
 
   }
 
@@ -497,7 +532,6 @@ namespace l1slhc
     double ttEta(0), ttPhi(0), ttEt(0);
     // Sums of eta*Et phi*Et and Et
     double etaEtSum(0), phiEtSum(0), etSum(0);
-    
     // Iterate through the TTs in the jet map
     for (L1CaloTowerRefVector::const_iterator lTT = mConstituents.begin() ; lTT != mConstituents.end(); ++lTT ) {
 
@@ -505,7 +539,6 @@ namespace l1slhc
       ttEta = mTowerGeo.eta( (**lTT).iEta() );
       ttPhi = mTowerGeo.phi( (**lTT).iPhi() );
       ttEt  = 0.5*((**lTT).E() + (**lTT).H());
-
       
       // Correct for phi wrap around, if jet map exceeds phi calorimeter range
       if ( (mIphi + (mJetSize - 1) ) > 72 ){
@@ -516,6 +549,12 @@ namespace l1slhc
 	}
 
       }
+      // Account for phi geometry of TTs
+      if ( (**lTT).iPhi() > 36 ){
+	ttPhi += 2*PI;
+      }
+      
+
 
       // Calculate the weighted eta, weighted phi and Et sums
       etaEtSum += ttEta*ttEt;
@@ -537,10 +576,10 @@ namespace l1slhc
     // Store the weighted eta and phi
     mP4.SetEta(lWeightedEta);
     mP4.SetPhi(lWeightedPhi);
-
-
+    
+   
   }
-
+  
 
     
 
@@ -583,23 +622,28 @@ namespace l1slhc
     for (L1CaloTowerRefVector::const_iterator lTT = mConstituents.begin() ; lTT != mConstituents.end(); ++lTT ) {
 
       // Extract the eta, phi and Et of the TT
+      int ttIPhi = (**lTT).iPhi();
+      ttPhi = mTowerGeo.phi( ttIPhi );
       ttEta = mTowerGeo.eta( (**lTT).iEta() );
-      ttPhi = mTowerGeo.phi( (**lTT).iPhi() );
       ttEt  = 0.5*((**lTT).E() + (**lTT).H());
-      
+    
       // Correct for phi wrap around, if jet map exceeds phi calorimeter range
       if ( (mIphi + (mJetSize - 1) ) > 72 ){
 
 	// Current tower has wrapped around
-	if ( (**lTT).iPhi() < mIphi ){
-	  ttPhi += 2*PI;
+	if ( ttIPhi < mIphi ){
+	  ttIPhi += 72;
+	  ttPhi  += 2*PI;
 	}
-
       }
 
-      // Unwrap the [-Pi,Pi] range
-      if (jetCenterPhi < 0)
-	jetCenterPhi += 2*PI;
+      if ( ttPhi < 0 ){
+	ttPhi += 2*PI;
+      }
+
+//       // Unwrap the [-Pi,Pi] range
+//       if (jetCenterPhi < 0)
+// 	jetCenterPhi += 2*PI;
 
     
       // Calculate deltaR between energy deposit and jet centre
@@ -611,14 +655,15 @@ namespace l1slhc
       deltaREtSum += deltaR*ttEt;
       etSum       += ttEt;
 
-      /*      
-      // DEBUGGING Eta = 0, Phi = 0
-	std::cout << "----------------------------------------------------------\n" 
-		  << "JET : iEta = " << mIeta + mJetSize/2 << "\tiPhi = " << jetCenteriPhi << "\tEta = " << jetCenterEta << "\tPhi = " << jetCenterPhi << "\n"
-		  << "TT  : iEta = " << (**lTT).iEta()     << "\tiPhi = " << (**lTT).iPhi()<< "\tEta = " << ttEta        << "\tPhi = " << ttPhi        << "\tE = " 
-		  << ttEt << "\n"
-		  << "DeltaEta = " << deltaEta << "\tDeltaPhi = " << deltaPhi << "\tRi = " << sqrt(deltaEta*deltaEta + deltaPhi*deltaPhi)<< "\n";
-      */
+           
+//       // DEBUGGING Eta = 0, Phi = 0
+// 	std::cout << "----------------------------------------------------------\n" 
+// 		  << "JET : iEta = " << mIeta + mJetSize/2 << "\tiPhi = " << jetCenteriPhi 
+// 		  << "\tEta = "      << jetCenterEta       << "\tPhi = "  << jetCenterPhi*(180/3.14159)   << "\n"
+// 		  << "TT  : iEta = " << (**lTT).iEta()     << "\tiPhi = " << ttIPhi 
+// 		  << "\tEta = "      << ttEta              << "\tPhi = "  << ttPhi*(180/3.14159)     
+// 		  << "\tE = "        << ttEt << "\n"
+// 		  << "DeltaEta = " << deltaEta << "\tDeltaPhi = " << deltaPhi*(180/3.14159) << "\tRi = " << deltaR << "\n";
       
     }
 
@@ -626,103 +671,10 @@ namespace l1slhc
     
     // Calculate the centrality of the jet energy deposits
     mCentrality =  deltaREtSum/etSum;
-    //    std::cout << "Centrality = " << mCentrality << "\n==========================================================\n\n";
+//         std::cout << "Centrality = " << mCentrality << "\n==========================================================\n\n";
 
   }
 
-
-
-
-  //
-  // Below code is incorrrect. Should keep the calculation in eta and phi space and then transform to
-  // i-eta and i-phi space to avoid discretisation issues and changing eta widths of TTs.
-
-  // --------------------------------------------------
-  // modified version to calculate weighted eta by first converting iEta to eta, than weighting
-  /*
-  void L1TowerJet::calculateWeightedEta()
-  {
-    
-    const double endcapEta[8] = { 0.09, 0.1, 0.113, 0.129, 0.15, 0.178, 0.15, 0.35 };
-    
-    double etaSumEt(0); 
-    double sumEt(0);
-
-    double tmpEta(9999);
-    double abs_eta(9999);
-
-    for (L1CaloTowerRefVector::const_iterator lConstituentIt = mConstituents.begin() ; lConstituentIt != mConstituents.end(); ++lConstituentIt ) {
-
-      abs_eta = fabs((**lConstituentIt).iEta());
-      if (abs_eta < 21) tmpEta = (0.087*abs_eta - 0.0435);
-      else {
-	abs_eta -= 21;
-	tmpEta = 1.74;
-	
-	for (int i=0; i!=int(abs_eta); ++i) tmpEta += endcapEta[i];
-      
-	// ~ Why are we treating these differently??? ~
-	if (mJetSize % 2 == 0) tmpEta += endcapEta[int(abs_eta)] / 2.;
-	else tmpEta += endcapEta[int(abs_eta)];
-      }
-      if ((**lConstituentIt).iEta()<0) tmpEta = (-1)*tmpEta;
-
-      etaSumEt += ( (**lConstituentIt).E() + (**lConstituentIt).H() ) * ( tmpEta );
-      sumEt += ( (**lConstituentIt).E() + (**lConstituentIt).H() ) ;
-    }
-    
-    mWeightedEta = etaSumEt/sumEt ; 
-
-  }
-  */
-  /*
-  void L1TowerJet::calculateWeightedPhi( )
-  {
-    //  double JetSize = double(mJetSize) / 2.0;
-    double WeightedPhi = ( ( mWeightedIphi-0.5 ) * 0.087 );
-    //Need this because 72*0.087 != 2pi: else get uneven phi dist
-    double pi=(72*0.087)/2;
-    if(WeightedPhi > pi) WeightedPhi -=2*pi;
-    mWeightedPhi=WeightedPhi;
-    //  std::cout<<"weighted IPhi: "<<mWeightedIphi<<" weighted phi: "<<WeightedPhi<<std::endl;
-  }
-  */
-
-  /*
-  // old version of calculating weighted eta using as input weighted iEta (this does not give the right result)
-  void L1TowerJet::calculateWeightedEta()
-  {
-  double WeightedEta(9999);
-  double abs_eta =fabs(mWeightedIeta);
-  if ( abs_eta < 21 )
-  {
-  //with discrete iEta this first option should always be the case
-  if( abs_eta >=1) WeightedEta = (0.087*abs_eta - 0.0435);
-  else WeightedEta = 0.0435*abs_eta ;
-
-  }
-  else
-  {
-  const double endcapEta[8] = { 0.09, 0.1, 0.113, 0.129, 0.15, 0.178, 0.15, 0.35 };
-  abs_eta -= 21;
-
-  WeightedEta = 1.74;
-
-  for ( int i = 0; i != int(abs_eta); ++i )
-  {
-  WeightedEta += endcapEta[i];
-  }
-  if( mJetSize % 2 == 0 ){
-  WeightedEta += endcapEta[int(abs_eta)] / 2.;
-  }else{
-  WeightedEta += endcapEta[int(abs_eta)];
-  }
-  }
-  if(mWeightedIeta<0) WeightedEta=-WeightedEta;
-
-  mWeightedEta = WeightedEta;
-  }
-  */
 
 
 
@@ -741,14 +693,19 @@ namespace l1slhc
 
     //slightly different sizes for HF jets
     if( abs( iEta() ) > 28 ){
-      //???? Not sure what this is doing ????
       lHalfJetSizeEta = 1; //ie mJetSize/4 as in HF jets 2 in eta
     }
+
+    double E = Tower->E()*0.5;
+    double H = Tower->H()*0.5;
+    mEcal += E;
+    mHcal += H;
   
     // Store the energy in 2GeV units
     mE2GeV += lTowerEnergy;
     mE     += 0.5*lTowerEnergy;
     mConstituents.push_back( Tower );
+
 
 
 //     std::cout << Tower->iEta() << "\t" << Tower->iPhi() << "\t"
@@ -836,17 +793,21 @@ namespace l1slhc
 
   void L1TowerJet::removeConstituent( const int &eta, const int &phi )
   {
-    L1CaloTowerRefVector::iterator lConstituent = getConstituent( eta, phi );
+    L1CaloTowerRefVector::iterator lConstituent = getConstituent( eta - mIeta, phi - mIphi );
     if ( lConstituent != mConstituents.end() ){
 
 	int lHalfJetSizeEta( mJetSize >> 1 );
 	int lHalfJetSizePhi( mJetSize >> 1 );
 	int lTowerEnergy( (**lConstituent).E(  ) + (**lConstituent).H(  ) );
 
+	mEcal -= 0.5*((**lConstituent).E());
+	mHcal -= 0.5*((**lConstituent).H());
+
 	mE2GeV -= lTowerEnergy;
 	mE     -= 0.5*lTowerEnergy;
 	mConstituents.erase( lConstituent );
     
+
 	if( abs( iEta() ) > 28 ){
 	  lHalfJetSizeEta = 1; //ie mJetSize/4 as in HF jets 2 in eta
 	}
@@ -912,7 +873,7 @@ namespace l1slhc
     return mConstituents;
   }
   
-  
+  // Returns jet constituent relative to jet (iEta, iPhi) reference tower
   L1CaloTowerRefVector::iterator L1TowerJet::getConstituent( const int &eta, const int &phi )
   {
     for ( L1CaloTowerRefVector::iterator lConstituentIt = mConstituents.begin() ; lConstituentIt != mConstituents.end(); ++lConstituentIt )

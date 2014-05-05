@@ -36,9 +36,13 @@ namespace l1slhc
 
 		// getters
 		// ~~~~~~~
-		// Jet iEta and iPhi parameters (Eta and phi of top-left reference TT)
+		// Jet iEta and iPhi parameters (Eta and phi of bottom-left reference TT)
 		const int& iEta(  ) const;
 		const int& iPhi(  ) const;
+
+		const double& Ecal() const;
+		const double& Hcal() const;
+
 		// Total TT energy sum (GeV)
 		const double& E(  ) const;
 		const bool& central(  ) const;
@@ -49,12 +53,6 @@ namespace l1slhc
 		//asymmetry member variables
 		const int& AsymEta(  ) const;
 		const int& AsymPhi(  ) const;
-
-
-		/* //weighted iEta, iPhi
-                const double& iWeightedEta( ) const;
-                const double& iWeightedPhi( ) const;
-		*/
 
 		// Jet pT
                 const double Pt( ) const;
@@ -93,6 +91,12 @@ namespace l1slhc
 		void setP4( const math::PtEtaPhiMLorentzVector & p4 );
 		void setPt( const double & pT );
 		void setCentral( const bool& );
+		void setiEta( const int& iEta );
+
+
+		void SetJetArea(     double newJetArea     );
+		void SetJetRealArea( double newJetRealArea );
+
 
 		// Calculate the jet centrality
 		void calculateCentrality();
@@ -116,6 +120,11 @@ namespace l1slhc
 		int mIphi;
 		// Energy of jet in 2 GeV units: 1 -> 2 GeV (REMOVE THIS)
 		int mE2GeV;
+
+		// Total energy of Ecal and Hcal
+		double mEcal;
+		double mHcal;
+
 		// True value of E in GeV
 		double mE;
 
