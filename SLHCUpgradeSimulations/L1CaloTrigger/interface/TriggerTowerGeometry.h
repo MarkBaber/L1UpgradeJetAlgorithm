@@ -51,6 +51,72 @@ class TriggerTowerGeometry
 	  }
 	}
 
+	// Convert phi (radians) to iPhi
+	int iPhi( const double& Phi )
+	{ 
+	  double PhiDeg = Phi * 57.2957795131;
+	  int iPhi = int( PhiDeg/5 ) + 1;
+	  return iPhi;
+	}
+	// Convert eta to iEta
+	int iEta( const double& Eta )
+	{ 
+	  // Return error
+	  if ( fabs(Eta) > 3){
+	    return 0;
+	  }
+
+	  int ieta;
+	  double fabsEta = fabs( Eta );
+	  if ( fabsEta < 0.087*20){
+	    ieta = fabsEta/0.087 + 1;
+	  }
+	  else{
+	    
+	    double overEta = fabsEta - 20*0.087;
+	    int etaBin = 20;
+	    while ( overEta > 0 ){
+	      etaBin++;
+	      overEta -= mMappingeta[ etaBin ];
+	    }
+	    ieta = etaBin;
+
+	  }
+
+
+	  if ( Eta < 0 ){
+	    return -ieta;
+	  }
+	  else{
+	    return ieta;
+	  }
+	}
+
+	// Assumes iPhi is valid, abs(deltaIPhi) < 72                                                                                                                                                   
+	int addToiPhi( int iPhi, int deltaIPhi ){
+	  int newIPhi = iPhi + deltaIPhi;
+	  if ( deltaIPhi > 0){
+	    if (newIPhi > 72){ newIPhi -= 72;}
+	  }
+	  if ( deltaIPhi < 0){
+	    if (newIPhi < 1){  newIPhi += 72;}
+	  }
+	  return newIPhi;
+	}
+	// Assumes iEta is valid, no limit is set on returned iEta                                                                                                                                      
+	int addToiEta( int iEta, int deltaIEta ){
+	  int newIEta = iEta + deltaIEta;
+	  if ( deltaIEta > 0){
+	    if ( (iEta < 0) && (deltaIEta >= 0) ){ deltaIEta++; }
+	  }
+	  if ( deltaIEta < 0){
+	    if ( (iEta > 0) && (deltaIEta <= 0) ){ deltaIEta--; }
+	  }
+	  return newIEta;
+	}
+
+
+
 	double towerEtaSize( const int& iEta )
 	{
 		return mMappingeta[abs( iEta )];
@@ -58,9 +124,12 @@ class TriggerTowerGeometry
 
 	double towerPhiSize( const int& iPhi )
 	{
-	  
 	  return mDeltaPhi;
-	  //return 0.087;
+	}
+
+	double towerArea( const int& iEta, const int& iPhi )
+	{
+	  return towerEtaSize( iEta ) * towerPhiSize( iPhi );
 	}
 
   private:
